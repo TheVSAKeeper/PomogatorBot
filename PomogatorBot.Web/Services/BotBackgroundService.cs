@@ -1,12 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PomogatorBot.Web.Infrastructure;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using User = PomogatorBot.Web.Infrastructure.Entities.User;
 
-namespace PomogatorBot.Web;
+namespace PomogatorBot.Web.Services;
 
 public class BotBackgroundService(
     ITelegramBotClient botClient,
@@ -292,13 +294,17 @@ public class BotBackgroundService(
 
     private Task HandlePollingErrorAsync(ITelegramBotClient bot, Exception exception, CancellationToken cancellationToken)
     {
-        var errorMessage = exception switch
+        switch (exception)
         {
-            ApiRequestException api => $"Telegram API Error: [{api.ErrorCode}] {api.Message}",
-            _ => exception.ToString(),
-        };
+            case ApiRequestException api:
+                logger.LogError(api, $"Telegram API Error: [{api.ErrorCode}] {api.Message}");
+                break;
 
-        logger.LogError(errorMessage);
+            default:
+                logger.LogError(exception, "Internal Error: ");
+                break;
+        }
+
         return Task.CompletedTask;
     }
 
