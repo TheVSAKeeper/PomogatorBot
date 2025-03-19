@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace PomogatorBot.Web;
+namespace PomogatorBot.Web.Infrastructure.Entities;
 
 public class User
 {

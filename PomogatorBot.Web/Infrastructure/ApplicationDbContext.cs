@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PomogatorBot.Web.Infrastructure.Entities;
 
-namespace PomogatorBot.Web;
+namespace PomogatorBot.Web.Infrastructure;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {

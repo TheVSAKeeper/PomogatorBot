@@ -1,55 +1,64 @@
+using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PomogatorBot.Web;
+using PomogatorBot.Web.Infrastructure;
+using PomogatorBot.Web.Middlewares;
+using PomogatorBot.Web.Services;
+using Serilog;
+using Serilog.Events;
 using Telegram.Bot;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
+    .CreateLogger();
 
-builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-        .UseSnakeCaseNamingConvention());
-
-builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-        .UseSnakeCaseNamingConvention());
-
-builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(builder.Configuration.GetValue<string>("BotConfiguration:Token")!));
-builder.Services.AddHostedService<BotBackgroundService>();
-
-builder.Services.AddEndpointsApiExplorer();
-
-var app = builder.Build();
-
-app.UseStaticFiles();
-
-app.MapGet("/", async context =>
+try
 {
-    context.Response.ContentType = "text/html";
-    await context.Response.SendFileAsync(Path.Combine("wwwroot", "index.html"));
-});
+    Log.Information("Starting web application");
 
-app.MapPost("/notify", async (NotifyRequest request, ApplicationDbContext dbContext, ITelegramBotClient botClient) =>
-{
-    var users = await dbContext.Users.ToListAsync();
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddSerilog();
 
-    foreach (var user in users)
+    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+            .UseSnakeCaseNamingConvention());
+
+    builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+            .UseSnakeCaseNamingConvention());
+
+    builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(builder.Configuration.GetValue<string>("BotConfiguration:Token")!));
+    builder.Services.AddHostedService<BotBackgroundService>();
+
+    builder.Services.AddExceptionHandler<ExceptionHandler>();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddFastEndpoints();
+    builder.Services.AddHttpContextAccessor();
+
+    var app = builder.Build();
+
+    app.UseExceptionHandler();
+    app.UseSerilogRequestLogging();
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.UseFastEndpoints();
+
+    app.MapGet("/", async context =>
     {
-        var messageText = request.Message
-            .Replace("<first_name>", user.FirstName)
-            .Replace("<username>", user.Username);
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(Path.Combine("wwwroot", "index.html"));
+    });
 
-        try
-        {
-            await botClient.SendMessage(user.UserId, messageText);
-        }
-        catch (Exception exception)
-        {
-            app.Logger.LogError(exception, "Error sending message to user {UserId}", user.UserId);
-        }
-    }
-
-    return Results.Ok();
-});
-
-app.Run();
-
-public record NotifyRequest(string Message);
+    app.Run();
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
