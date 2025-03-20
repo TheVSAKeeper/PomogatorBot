@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using PomogatorBot.Web;
 using PomogatorBot.Web.Infrastructure;
 
 #nullable disable
@@ -23,7 +22,7 @@ namespace PomogatorBot.Web.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("PomogatorBot.Web.User", b =>
+            modelBuilder.Entity("PomogatorBot.Web.Infrastructure.Entities.User", b =>
                 {
                     b.Property<long>("UserId")
                         .ValueGeneratedOnAdd()
@@ -46,6 +45,10 @@ namespace PomogatorBot.Web.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("last_name");
+
+                    b.Property<int>("Subscriptions")
+                        .HasColumnType("integer")
+                        .HasColumnName("subscriptions");
 
                     b.Property<string>("Username")
                         .IsRequired()
