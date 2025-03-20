@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PomogatorBot.Web.Infrastructure;
+using PomogatorBot.Web.Infrastructure.Entities;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -57,6 +58,11 @@ public class BotBackgroundService(
             Command = "me",
             Description = "Показать информацию о себе",
         },
+        new()
+        {
+            Command = "subscriptions",
+            Description = "Управление подписками",
+        },
     ];
 
     private string _helpText = string.Empty;
@@ -112,6 +118,7 @@ public class BotBackgroundService(
             "/join" => await HandleJoinCommand(message.From, cancellationToken),
             "/me" => await HandleMeCommand(userId, cancellationToken),
             "/leave" => await HandleLeaveCommand(userId, cancellationToken),
+            "/subscriptions" => await HandleSubscriptionsCommand(userId, cancellationToken),
             _ => await HandleDefaultMessage(userId, cancellationToken),
         };
 
@@ -195,6 +202,14 @@ public class BotBackgroundService(
         return new("Вы не были зарегистрированы");
     }
 
+    private async Task<BotResponse> HandleSubscriptionsCommand(long userId, CancellationToken cancellationToken)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var user = await dbContext.Users.FindAsync([userId], cancellationToken);
+        var subscriptions = user?.Subscriptions ?? Subscribes.None;
+        return new("Управление подписками:", MakeSubscriptionsKeyboard(subscriptions));
+    }
+
     private async Task<BotResponse> HandleDefaultMessage(long userId, CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -216,16 +231,38 @@ public class BotBackgroundService(
 
         logger.LogInformation("Получен callback: {CallbackData}", callbackQuery.Data);
 
-        var response = callbackQuery.Data switch
-        {
-            "command_join" => await HandleJoinCommand(callbackQuery.From, cancellationToken),
-            "command_help" => HandleHelpCommand(),
-            "command_me" => await HandleMeCommand(callbackQuery.From.Id, cancellationToken),
-            "command_leave" => await HandleLeaveCommand(callbackQuery.From.Id, cancellationToken),
-            _ => new(string.Empty),
-        };
+        BotResponse response;
 
-        if (string.IsNullOrWhiteSpace(response.Message) == false)
+        var toggle = "toggle_";
+
+        var userId = callbackQuery.From.Id;
+
+        if (callbackQuery.Data.StartsWith(toggle))
+        {
+            response = await HandleToggleSubscription(userId, callbackQuery.Data[toggle.Length..], cancellationToken);
+        }
+        else
+        {
+            response = callbackQuery.Data switch
+            {
+                "command_join" => await HandleJoinCommand(callbackQuery.From, cancellationToken),
+                "command_help" => HandleHelpCommand(),
+                "command_me" => await HandleMeCommand(userId, cancellationToken),
+                "command_leave" => await HandleLeaveCommand(userId, cancellationToken),
+                "command_subscriptions" => await HandleSubscriptionsCommand(userId, cancellationToken),
+                "sub_all" => await UpdateSubscriptions(userId, Subscribes.All, cancellationToken),
+                "sub_none" => await UpdateSubscriptions(userId, Subscribes.None, cancellationToken),
+                "menu_back" => await HandleMeCommand(userId, cancellationToken),
+                _ => new(string.Empty),
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(response.Message)
+            && (callbackQuery.Data.StartsWith(toggle) || callbackQuery.Data.StartsWith("sub_")))
+        {
+            await UpdateSubscriptionsMenu(bot, message, cancellationToken);
+        }
+        else if (string.IsNullOrWhiteSpace(response.Message) == false)
         {
             await EditOrSendResponse(bot, message.Chat.Id, message.MessageId, response, cancellationToken);
         }
@@ -252,16 +289,59 @@ public class BotBackgroundService(
         }
 
         buttons.Add([
+            InlineKeyboardButton.WithCallbackData("🎚️ Управление подписками", "command_subscriptions"),
             InlineKeyboardButton.WithCallbackData("❓ Помощь", "command_help"),
         ]);
 
         return new(buttons);
     }
 
+    private InlineKeyboardMarkup MakeSubscriptionsKeyboard(Subscribes subscriptions)
+    {
+        var buttons = new List<InlineKeyboardButton[]>
+        {
+            new[]
+            {
+                MakeSubscriptionButton("Стримы", Subscribes.Streams, subscriptions),
+            },
+            new[]
+            {
+                MakeSubscriptionButton("Menasi", Subscribes.Menasi, subscriptions),
+            },
+            new[]
+            {
+                MakeSubscriptionButton("Доброе утро", Subscribes.DobroeUtro, subscriptions),
+            },
+            new[]
+            {
+                MakeSubscriptionButton("Споки-ноки", Subscribes.SpokiNoki, subscriptions),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("✅ Включить все", "sub_all"),
+                InlineKeyboardButton.WithCallbackData("❌ Выключить все", "sub_none"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Назад", "menu_back"),
+            },
+        };
+
+        return new(buttons);
+    }
+
+    private InlineKeyboardButton MakeSubscriptionButton(string name, Subscribes subscription, Subscribes current)
+    {
+        var isActive = current.HasFlag(subscription);
+        return InlineKeyboardButton.WithCallbackData($"{(isActive ? "✅" : "❌")} {name}", $"toggle_{subscription}");
+    }
+
     private async Task EditOrSendResponse(ITelegramBotClient bot, long chatId, int? messageId, BotResponse response, CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var userExists = dbContext.Users.Any(x => x.UserId == chatId);
+        var keyboard = response.KeyboardMarkup;
+        keyboard ??= MakeWelcomeKeyboard(userExists);
 
         if (messageId.HasValue)
         {
@@ -270,7 +350,7 @@ public class BotBackgroundService(
                 await bot.EditMessageText(chatId,
                     messageId.Value,
                     response.Message,
-                    replyMarkup: MakeWelcomeKeyboard(userExists),
+                    replyMarkup: keyboard,
                     cancellationToken: cancellationToken);
             }
             catch (ApiRequestException exception) when (exception.Message.Contains("message is not modified"))
@@ -281,7 +361,7 @@ public class BotBackgroundService(
         {
             await bot.SendMessage(chatId,
                 response.Message,
-                replyMarkup: MakeWelcomeKeyboard(userExists),
+                replyMarkup: keyboard,
                 cancellationToken: cancellationToken);
         }
     }
@@ -297,7 +377,7 @@ public class BotBackgroundService(
         switch (exception)
         {
             case ApiRequestException api:
-                logger.LogError(api, $"Telegram API Error: [{api.ErrorCode}] {api.Message}");
+                logger.LogError(api, "Telegram API Error: [{ErrorCode}] {Message}", api.ErrorCode, api.Message);
                 break;
 
             default:
@@ -308,5 +388,51 @@ public class BotBackgroundService(
         return Task.CompletedTask;
     }
 
-    private record BotResponse(string Message);
+    private async Task UpdateSubscriptionsMenu(ITelegramBotClient bot, Message message, CancellationToken cancellationToken)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var user = await dbContext.Users.FindAsync([message.Chat.Id], cancellationToken);
+
+        await bot.EditMessageReplyMarkup(message.Chat.Id,
+            message.MessageId,
+            MakeSubscriptionsKeyboard(user?.Subscriptions ?? Subscribes.None),
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<BotResponse> HandleToggleSubscription(long userId, string subscriptionName, CancellationToken cancellationToken)
+    {
+        if (Enum.TryParse<Subscribes>(subscriptionName, out var subscription) == false)
+        {
+            return new("Неизвестная подписка");
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var user = await dbContext.Users.FindAsync([userId], cancellationToken);
+
+        if (user == null)
+        {
+            return new("Сначала зарегистрируйтесь через /join");
+        }
+
+        user.Subscriptions ^= subscription;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new(string.Empty);
+    }
+
+    private async Task<BotResponse> UpdateSubscriptions(long userId, Subscribes newSubscription, CancellationToken cancellationToken)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var user = await dbContext.Users.FindAsync([userId], cancellationToken);
+
+        if (user == null)
+        {
+            return new("Сначала зарегистрируйтесь через /join");
+        }
+
+        user.Subscriptions = newSubscription;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new(string.Empty);
+    }
+
+    private record BotResponse(string Message, InlineKeyboardMarkup? KeyboardMarkup = null);
 }
