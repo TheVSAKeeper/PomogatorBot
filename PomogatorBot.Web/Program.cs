@@ -1,6 +1,5 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using PomogatorBot.Web;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
 using PomogatorBot.Web.Services;
@@ -32,6 +31,15 @@ try
 
     builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(builder.Configuration.GetValue<string>("BotConfiguration:Token")!));
     builder.Services.AddHostedService<BotBackgroundService>();
+
+    builder.Services.AddProblemDetails(options =>
+    {
+        options.CustomizeProblemDetails = context =>
+        {
+            context.ProblemDetails.Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
+            context.ProblemDetails.Extensions.TryAdd("requestId", context.HttpContext.TraceIdentifier);
+        };
+    });
 
     builder.Services.AddExceptionHandler<ExceptionHandler>();
     builder.Services.AddEndpointsApiExplorer();

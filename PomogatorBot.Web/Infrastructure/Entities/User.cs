@@ -20,4 +20,6 @@ public class User
 
     [Required]
     public DateTime CreatedAt { get; set; }
+
+    public Subscribes Subscriptions { get; set; } = Subscribes.None;
 }
