@@ -1,5 +1,7 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using PomogatorBot.Web.Commands;
+using PomogatorBot.Web.Commands.Common;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
 using PomogatorBot.Web.Services;
@@ -21,16 +23,33 @@ try
     var builder = WebApplication.CreateBuilder(args);
     builder.Services.AddSerilog();
 
-    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-            .UseSnakeCaseNamingConvention());
-
     builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
             .UseSnakeCaseNamingConvention());
 
+    builder.Services.AddScoped(provider => provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
+
     builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(builder.Configuration.GetValue<string>("BotConfiguration:Token")!));
+
     builder.Services.AddHostedService<BotBackgroundService>();
+
+    builder.Services
+        .AddScoped<IBotCommandHandler, StartCommandHandler>()
+        .AddScoped<IBotCommandHandler, HelpCommandHandler>()
+        .AddScoped<IBotCommandHandler, JoinCommandHandler>()
+        .AddScoped<IBotCommandHandler, MeCommandHandler>()
+        .AddScoped<IBotCommandHandler, LeaveCommandHandler>()
+        .AddScoped<IBotCommandHandler, SubscriptionsCommandHandler>()
+        .AddScoped<IBotCommandHandler, DefaultCommandHandler>()
+        .AddScoped<ICommandMetadata, StartCommandHandler>()
+        .AddScoped<ICommandMetadata, JoinCommandHandler>()
+        .AddScoped<ICommandMetadata, MeCommandHandler>()
+        .AddScoped<ICommandMetadata, LeaveCommandHandler>()
+        .AddScoped<ICommandMetadata, SubscriptionsCommandHandler>()
+        .AddScoped<IKeyboardFactory, KeyboardFactory>()
+        .AddScoped<IUserService, UserService>()
+        .AddScoped<CommandRouter>()
+        ;
 
     builder.Services.AddProblemDetails(options =>
     {

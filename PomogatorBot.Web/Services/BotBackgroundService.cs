@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PomogatorBot.Web.Commands.Common;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Infrastructure.Entities;
 using Telegram.Bot;
@@ -13,6 +14,7 @@ namespace PomogatorBot.Web.Services;
 
 public class BotBackgroundService(
     ITelegramBotClient botClient,
+    IServiceProvider serviceProvider,
     IDbContextFactory<ApplicationDbContext> dbContextFactory,
     ILogger<BotBackgroundService> logger)
     : BackgroundService
@@ -109,36 +111,14 @@ public class BotBackgroundService(
 
         logger.LogInformation("Полученное сообщение от {UserId}: {Text}", userId, text);
 
-        var command = text.Split(' ')[0].ToLower();
-
-        var response = command switch
-        {
-            "/start" => HandleStartCommand(),
-            "/help" => HandleHelpCommand(),
-            "/join" => await HandleJoinCommand(message.From, cancellationToken),
-            "/me" => await HandleMeCommand(userId, cancellationToken),
-            "/leave" => await HandleLeaveCommand(userId, cancellationToken),
-            "/subscriptions" => await HandleSubscriptionsCommand(userId, cancellationToken),
-            _ => await HandleDefaultMessage(userId, cancellationToken),
-        };
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var handler = scope.ServiceProvider.GetRequiredService<CommandRouter>().GetHandler(message.Text);
+        var response = await handler.HandleAsync(message, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(response.Message) == false)
         {
             await EditOrSendResponse(bot, message.Chat.Id, null, response, cancellationToken);
         }
-    }
-
-    private BotResponse HandleStartCommand()
-    {
-        var text = """
-                   👋 Добро пожаловать! Я ваш помощник.
-                   🚀 Чтобы начать:
-                   1. Используйте /join для регистрации
-                   2. Посмотрите /help для списка команд
-                   3. Используйте /me для вашего профиля
-                   """;
-
-        return new(text);
     }
 
     private BotResponse HandleHelpCommand()
@@ -433,6 +413,4 @@ public class BotBackgroundService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return new(string.Empty);
     }
-
-    private record BotResponse(string Message, InlineKeyboardMarkup? KeyboardMarkup = null);
 }
