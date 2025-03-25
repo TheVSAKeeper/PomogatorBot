@@ -6,8 +6,9 @@ namespace PomogatorBot.Web.Commands;
 
 public class MeCommandHandler(IUserService userService) : IBotCommandHandler, ICommandMetadata
 {
-    public string Command => "/me";
-    public string Description => "Показать информацию о себе";
+    public static CommandMetadata Metadata { get; } = new("me", "Показать информацию о себе");
+
+    public string Command => Metadata.Command;
 
     public async Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {
