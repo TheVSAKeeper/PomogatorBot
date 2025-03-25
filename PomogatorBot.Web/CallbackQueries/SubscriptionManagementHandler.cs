@@ -23,7 +23,7 @@ public class SubscriptionManagementHandler(IUserService userService) : ICallback
 
         if (user == null)
         {
-            return new($"Сначала зарегистрируйтесь через /{JoinCommandHandler.Metadata.Command}");
+            return new(Messages.JoinBefore);
         }
 
         user.Subscriptions = action switch

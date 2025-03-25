@@ -10,6 +10,9 @@ async function sendMessage() {
     const button = document.querySelector('.send-button');
     const textarea = document.querySelector('.message-field');
 
+    const subscribes = Array.from(document.querySelectorAll('input[name="subscribes"]:checked'))
+        .reduce((acc, checkbox) => acc | parseInt(checkbox.value), 0);
+
     if (editingIndex !== -1) {
         saveEdit(false);
     }
@@ -31,7 +34,8 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                message: textarea.value
+                message: textarea.value,
+                subscribes
             })
         });
 

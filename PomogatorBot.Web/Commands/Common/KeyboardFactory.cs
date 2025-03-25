@@ -55,18 +55,22 @@ public class KeyboardFactory : IKeyboardFactory
                 InlineKeyboardButton.WithCallbackData("📌 Мой профиль", MeCommandHandler.Metadata.Command),
                 InlineKeyboardButton.WithCallbackData("🚪 Покинуть", LeaveCommandHandler.Metadata.Command),
             ]);
+
+            buttons.Add([
+                InlineKeyboardButton.WithCallbackData("🎚️ Управление подписками", SubscriptionsCommandHandler.Metadata.Command),
+                InlineKeyboardButton.WithCallbackData("❓ Помощь", HelpCommandHandler.Metadata.Command),
+            ]);
         }
         else
         {
             buttons.Add([
                 InlineKeyboardButton.WithCallbackData("🎯 Присоединиться", JoinCommandHandler.Metadata.Command),
             ]);
-        }
 
-        buttons.Add([
-            InlineKeyboardButton.WithCallbackData("🎚️ Управление подписками", SubscriptionsCommandHandler.Metadata.Command),
-            InlineKeyboardButton.WithCallbackData("❓ Помощь", HelpCommandHandler.Metadata.Command),
-        ]);
+            buttons.Add([
+                InlineKeyboardButton.WithCallbackData("❓ Помощь", HelpCommandHandler.Metadata.Command),
+            ]);
+        }
 
         return new(buttons);
     }

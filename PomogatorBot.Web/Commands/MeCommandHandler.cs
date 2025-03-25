@@ -23,7 +23,7 @@ public class MeCommandHandler(IUserService userService) : IBotCommandHandler, IC
 
         if (user == null)
         {
-            return new("Сначала выполните /join");
+            return new($"Сначала выполните /{JoinCommandHandler.Metadata.Command}");
         }
 
         return new($"""

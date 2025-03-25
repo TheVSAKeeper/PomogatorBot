@@ -14,7 +14,6 @@ namespace PomogatorBot.Web.Services;
 public class BotBackgroundService(
     ITelegramBotClient botClient,
     IServiceProvider serviceProvider,
-    IEnumerable<CommandMetadata> commandMetadatas,
     IDbContextFactory<ApplicationDbContext> dbContextFactory,
     ILogger<BotBackgroundService> logger)
     : BackgroundService
@@ -31,8 +30,12 @@ public class BotBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // TODO: Scope for IEnumerable<CommandMetadata>
-        await botClient.SetMyCommands(commandMetadatas.Select(x => new BotCommand(x.Command, x.Description)), cancellationToken: stoppingToken);
+        await using (var scope = serviceProvider.CreateAsyncScope())
+        {
+            var commandMetadatas = scope.ServiceProvider.GetRequiredService<IEnumerable<CommandMetadata>>();
+            var botCommands = commandMetadatas.Select(x => new BotCommand(x.Command, x.Description));
+            await botClient.SetMyCommands(botCommands, cancellationToken: stoppingToken);
+        }
 
         var me = await botClient.GetMe(stoppingToken);
         logger.LogInformation("Bot @{Username} started", me.Username);
@@ -78,6 +81,7 @@ public class BotBackgroundService(
         logger.LogInformation("Полученное сообщение от {UserId}: {Text}", userId, text);
 
         await using var scope = serviceProvider.CreateAsyncScope();
+
         var handler = scope.ServiceProvider.GetRequiredService<CommandRouter>().GetHandlerWithDefault(message.Text);
         var response = await handler.HandleAsync(message, cancellationToken);
 
@@ -110,13 +114,12 @@ public class BotBackgroundService(
             }
             else
             {
-                await EditOrSendResponse(bot, callbackQuery.Message.Chat.Id,
+                await EditOrSendResponse(bot,
+                    callbackQuery.Message.Chat.Id,
                     callbackQuery.Message.MessageId,
                     response,
                     cancellationToken);
             }
-
-            await bot.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: cancellationToken);
         }
         else
         {
@@ -128,7 +131,11 @@ public class BotBackgroundService(
 
                 if (string.IsNullOrWhiteSpace(response.Message) == false)
                 {
-                    await EditOrSendResponse(bot, callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, response, cancellationToken);
+                    await EditOrSendResponse(bot,
+                        callbackQuery.Message.Chat.Id,
+                        callbackQuery.Message.MessageId,
+                        response,
+                        cancellationToken);
                 }
             }
             else
@@ -136,6 +143,8 @@ public class BotBackgroundService(
                 logger.LogWarning("No handler found for callback: {CallbackData}", callbackQuery.Data);
             }
         }
+
+        await bot.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: cancellationToken);
     }
 
     private async Task UpdateDynamicMarkup(
