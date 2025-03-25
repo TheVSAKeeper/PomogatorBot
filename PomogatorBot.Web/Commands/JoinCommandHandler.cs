@@ -35,6 +35,8 @@ public class JoinCommandHandler(
             Username = user.Username ?? "Аноним",
             FirstName = user.FirstName,
             LastName = user.LastName,
+            CreatedAt = DateTime.UtcNow,
+            Subscriptions = 0,
         };
 
         await userService.SaveAsync(newUser, cancellationToken);

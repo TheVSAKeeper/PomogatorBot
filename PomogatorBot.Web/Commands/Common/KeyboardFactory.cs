@@ -52,20 +52,20 @@ public class KeyboardFactory : IKeyboardFactory
         if (userExists)
         {
             buttons.Add([
-                InlineKeyboardButton.WithCallbackData("📌 Мой профиль", "command_me"),
-                InlineKeyboardButton.WithCallbackData("🚪 Покинуть", "command_leave"),
+                InlineKeyboardButton.WithCallbackData("📌 Мой профиль", MeCommandHandler.Metadata.Command),
+                InlineKeyboardButton.WithCallbackData("🚪 Покинуть", LeaveCommandHandler.Metadata.Command),
             ]);
         }
         else
         {
             buttons.Add([
-                InlineKeyboardButton.WithCallbackData("🎯 Присоединиться", "command_join"),
+                InlineKeyboardButton.WithCallbackData("🎯 Присоединиться", JoinCommandHandler.Metadata.Command),
             ]);
         }
 
         buttons.Add([
-            InlineKeyboardButton.WithCallbackData("🎚️ Управление подписками", "command_subscriptions"),
-            InlineKeyboardButton.WithCallbackData("❓ Помощь", "command_help"),
+            InlineKeyboardButton.WithCallbackData("🎚️ Управление подписками", SubscriptionsCommandHandler.Metadata.Command),
+            InlineKeyboardButton.WithCallbackData("❓ Помощь", HelpCommandHandler.Metadata.Command),
         ]);
 
         return new(buttons);
