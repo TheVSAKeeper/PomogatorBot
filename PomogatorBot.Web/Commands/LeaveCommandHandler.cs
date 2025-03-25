@@ -6,8 +6,9 @@ namespace PomogatorBot.Web.Commands;
 
 public class LeaveCommandHandler(IUserService userService) : IBotCommandHandler, ICommandMetadata
 {
-    public string Command => "/leave";
-    public string Description => "Покинуть систему";
+    public static CommandMetadata Metadata { get; } = new("leave", "Покинуть систему");
+
+    public string Command => Metadata.Command;
 
     public async Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {

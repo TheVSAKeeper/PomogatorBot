@@ -7,7 +7,6 @@ namespace PomogatorBot.Web.Commands;
 public class DefaultCommandHandler(IUserService userService) : IBotCommandHandler
 {
     public string Command => string.Empty;
-    public string Description => string.Empty;
 
     public async Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {

@@ -5,23 +5,24 @@ namespace PomogatorBot.Web.Commands;
 
 public class HelpCommandHandler : IBotCommandHandler, ICommandMetadata
 {
-    private readonly string _helpText;
+    private readonly IEnumerable<CommandMetadata> _commands;
 
-    public HelpCommandHandler(IEnumerable<ICommandMetadata> commands)
+    public HelpCommandHandler(IEnumerable<CommandMetadata> commands)
     {
-        var lines = commands.Where(x => string.IsNullOrEmpty(x.Description) == false)
-            .OrderBy(x => x.Command)
-            .Prepend(this)
-            .Select(x => $"{x.Command} - {x.Description}");
-
-        _helpText = string.Join("\n", lines);
+        _commands = commands
+            .Where(c => !string.IsNullOrEmpty(c.Description))
+            .OrderBy(c => c.Command);
     }
 
-    public string Command => "/help";
-    public string Description => "Показать справку";
+    public static CommandMetadata Metadata { get; } = new("help", "Показать справку");
 
-    public Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
+    public string Command => Metadata.Command;
+
+    public Task<BotResponse> HandleAsync(Message message, CancellationToken ct)
     {
-        return Task.FromResult(new BotResponse(_helpText));
+        var helpText = string.Join("\n", _commands
+            .Select(c => $"/{c.Command} - {c.Description}"));
+
+        return Task.FromResult(new BotResponse(helpText));
     }
 }

@@ -9,8 +9,9 @@ public class JoinCommandHandler(
     IUserService userService,
     ILogger<JoinCommandHandler> logger) : IBotCommandHandler, ICommandMetadata
 {
-    public string Command => "/join";
-    public string Description => "Присоединиться к системе";
+    public static CommandMetadata Metadata { get; } = new("join", "Присоединиться к системе");
+
+    public string Command => Metadata.Command;
 
     public async Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {

@@ -8,8 +8,9 @@ public class SubscriptionsCommandHandler(
     IUserService userService,
     IKeyboardFactory keyboardFactory) : IBotCommandHandler, ICommandMetadata
 {
-    public string Command => "/subscriptions";
-    public string Description => "Управление подписками";
+    public static CommandMetadata Metadata { get; } = new("subscriptions", "Управление подписками");
+
+    public string Command => Metadata.Command;
 
     public async Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {

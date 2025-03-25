@@ -1,7 +1,7 @@
 namespace PomogatorBot.Web.Commands.Common;
 
+// TODO: Try join with IBotCommandHandler to base class
 public interface ICommandMetadata
 {
-    string Command { get; }
-    string Description { get; }
+    static abstract CommandMetadata Metadata { get; }
 }

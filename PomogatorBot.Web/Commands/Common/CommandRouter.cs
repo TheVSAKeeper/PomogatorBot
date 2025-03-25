@@ -11,7 +11,7 @@ public class CommandRouter
 
         _handlers = commandHandlers
             .Where(x => string.IsNullOrEmpty(x.Command) == false)
-            .ToDictionary(x => x.Command.ToLower());
+            .ToDictionary(x => '/' + x.Command.ToLowerInvariant());
 
         _defaultHandler = commandHandlers.FirstOrDefault(x => x is DefaultCommandHandler)
                           ?? throw new InvalidOperationException("Default command handler not found");
@@ -19,7 +19,7 @@ public class CommandRouter
 
     public IBotCommandHandler GetHandler(string command)
     {
-        var key = command.Split(' ')[0].ToLower();
+        var key = command.Split(' ')[0].ToLowerInvariant();
 
         return _handlers.TryGetValue(key, out var handler)
             ? handler

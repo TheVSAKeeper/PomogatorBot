@@ -1,6 +1,5 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using PomogatorBot.Web.Commands;
 using PomogatorBot.Web.Commands.Common;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
@@ -34,18 +33,7 @@ try
     builder.Services.AddHostedService<BotBackgroundService>();
 
     builder.Services
-        .AddScoped<IBotCommandHandler, StartCommandHandler>()
-        .AddScoped<IBotCommandHandler, HelpCommandHandler>()
-        .AddScoped<IBotCommandHandler, JoinCommandHandler>()
-        .AddScoped<IBotCommandHandler, MeCommandHandler>()
-        .AddScoped<IBotCommandHandler, LeaveCommandHandler>()
-        .AddScoped<IBotCommandHandler, SubscriptionsCommandHandler>()
-        .AddScoped<IBotCommandHandler, DefaultCommandHandler>()
-        .AddScoped<ICommandMetadata, StartCommandHandler>()
-        .AddScoped<ICommandMetadata, JoinCommandHandler>()
-        .AddScoped<ICommandMetadata, MeCommandHandler>()
-        .AddScoped<ICommandMetadata, LeaveCommandHandler>()
-        .AddScoped<ICommandMetadata, SubscriptionsCommandHandler>()
+        .AddBotCommandHandlers(typeof(Program).Assembly)
         .AddScoped<IKeyboardFactory, KeyboardFactory>()
         .AddScoped<IUserService, UserService>()
         .AddScoped<CommandRouter>()

@@ -15,6 +15,7 @@ namespace PomogatorBot.Web.Services;
 public class BotBackgroundService(
     ITelegramBotClient botClient,
     IServiceProvider serviceProvider,
+    IEnumerable<CommandMetadata> commandMetadatas,
     IDbContextFactory<ApplicationDbContext> dbContextFactory,
     ILogger<BotBackgroundService> logger)
     : BackgroundService
@@ -29,50 +30,13 @@ public class BotBackgroundService(
         DropPendingUpdates = false,
     };
 
-    private readonly List<BotCommand> _commands =
-    [
-        new()
-        {
-            Command = "start",
-            Description = "Начать работу с ботом",
-        },
-
-        new()
-        {
-            Command = "help",
-            Description = "Показать справку",
-        },
-
-        new()
-        {
-            Command = "join",
-            Description = "Присоединиться к системе",
-        },
-
-        new()
-        {
-            Command = "leave",
-            Description = "Покинуть систему",
-        },
-
-        new()
-        {
-            Command = "me",
-            Description = "Показать информацию о себе",
-        },
-        new()
-        {
-            Command = "subscriptions",
-            Description = "Управление подписками",
-        },
-    ];
-
     private string _helpText = string.Empty;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await botClient.SetMyCommands(_commands, cancellationToken: stoppingToken);
-        _helpText = string.Join(Environment.NewLine, _commands.Select(x => $"/{x.Command} - {x.Description}"));
+        // TODO: Scope for IEnumerable<CommandMetadata>
+        await botClient.SetMyCommands(commandMetadatas.Select(x => new BotCommand(x.Command, x.Description)), cancellationToken: stoppingToken);
+        _helpText = string.Join(Environment.NewLine, commandMetadatas.Select(x => $"/{x.Command} - {x.Description}"));
 
         var me = await botClient.GetMe(stoppingToken);
         logger.LogInformation("Bot @{Username} started", me.Username);
