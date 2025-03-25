@@ -21,8 +21,12 @@ public class SubscriptionsCommandHandler(
             return new("Ошибка идентификации пользователя");
         }
 
-        var user = await userService.GetAsync(userId.Value, cancellationToken)
-                   ?? throw new InvalidOperationException("User not found");
+        var user = await userService.GetAsync(userId.Value, cancellationToken);
+
+        if (user == null)
+        {
+            return new(Messages.JoinBefore);
+        }
 
         return new("Управление подписками:", keyboardFactory.CreateForSubscriptions(user.Subscriptions));
     }

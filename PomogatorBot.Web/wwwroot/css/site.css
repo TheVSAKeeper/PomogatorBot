@@ -383,3 +383,81 @@ h1 {
     flex-direction: row;
     gap: 10px;
 }
+
+.subscription-selector {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.subscription-title {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: #00bcd4;
+}
+
+.subscription-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.subscription-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.subscription-item:hover {
+    background: rgba(0, 188, 212, 0.1);
+}
+
+.subscription-item input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.checkmark {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    transition: all 0.3s ease;
+    border: 2px solid #00bcd4;
+    border-radius: 5px;
+}
+
+.subscription-item input:checked ~ .checkmark {
+    background: #00bcd4;
+    box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
+}
+
+.checkmark::after {
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    display: none;
+    width: 5px;
+    height: 10px;
+    content: "";
+    transform: rotate(45deg);
+    border: solid white;
+    border-width: 0 2px 2px 0;
+}
+
+.subscription-item input:checked ~ .checkmark::after {
+    display: block;
+}
+
+.subscription-label {
+    font-size: 0.95rem;
+    color: #fff;
+}

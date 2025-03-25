@@ -9,9 +9,12 @@ namespace PomogatorBot.Web.CallbackQueries;
 
 public class NavigationHandler(IUserService userService, IKeyboardFactory keyboardFactory) : ICallbackQueryHandler
 {
+    private const string MenuBack = "menu_back";
+    private const string MenuMain = "menu_main";
+
     public bool CanHandle(string callbackData)
     {
-        return callbackData is "menu_back" or "menu_main";
+        return callbackData is MenuBack or MenuMain;
     }
 
     public async Task<BotResponse> HandleCallbackAsync(CallbackQuery callbackQuery, CancellationToken cancellationToken)
@@ -21,8 +24,8 @@ public class NavigationHandler(IUserService userService, IKeyboardFactory keyboa
 
         return callbackQuery.Data switch
         {
-            "menu_back" => HandleBackNavigation(user),
-            "menu_main" => HandleMainMenuNavigation(user),
+            MenuBack => HandleBackNavigation(user),
+            MenuMain => HandleMainMenuNavigation(user),
             _ => new("Неподдерживаемая команда навигации"),
         };
     }
@@ -33,7 +36,7 @@ public class NavigationHandler(IUserService userService, IKeyboardFactory keyboa
 
         if (user == null)
         {
-            response = new($"Сначала зарегистрируйтесь через /{JoinCommandHandler.Metadata.Command}")
+            response = new(Messages.JoinBefore)
             {
                 KeyboardMarkup = keyboardFactory.CreateForWelcome(userExists: false),
             };

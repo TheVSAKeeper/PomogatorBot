@@ -28,7 +28,7 @@ public class ToggleSubscriptionHandler(IUserService userService, ILogger<ToggleS
 
         if (user == null)
         {
-            return new("Сначала зарегистрируйтесь через /join");
+            return new(Messages.JoinBefore);
         }
 
         user.Subscriptions ^= subscription;

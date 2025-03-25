@@ -10,8 +10,8 @@ public class HelpCommandHandler : IBotCommandHandler, ICommandMetadata
     public HelpCommandHandler(IEnumerable<CommandMetadata> commands)
     {
         _commands = commands
-            .Where(c => !string.IsNullOrEmpty(c.Description))
-            .OrderBy(c => c.Command);
+            .Where(x => string.IsNullOrEmpty(x.Description) == false)
+            .OrderBy(x => x.Command);
     }
 
     public static CommandMetadata Metadata { get; } = new("help", "Показать справку");
@@ -20,9 +20,7 @@ public class HelpCommandHandler : IBotCommandHandler, ICommandMetadata
 
     public Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {
-        var helpText = string.Join("\n", _commands
-            .Select(c => $"/{c.Command} - {c.Description}"));
-
+        var helpText = string.Join("\n", _commands.Select(c => $"/{c.Command} - {c.Description}"));
         return Task.FromResult(new BotResponse(helpText));
     }
 }

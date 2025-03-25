@@ -20,7 +20,7 @@ public class DefaultCommandHandler(IUserService userService) : IBotCommandHandle
         var exists = await userService.ExistsAsync(userId.Value, cancellationToken);
 
         return exists
-            ? new("Не понимаю команду. Используйте /help для списка команд")
-            : new BotResponse("Для начала работы выполните /join");
+            ? new($"Не понимаю команду. Используйте /{HelpCommandHandler.Metadata.Command} для списка команд")
+            : new BotResponse($"Для начала работы выполните /{JoinCommandHandler.Metadata.Command}");
     }
 }
