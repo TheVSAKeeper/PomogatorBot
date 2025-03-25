@@ -17,12 +17,19 @@ public class CommandRouter
                           ?? throw new InvalidOperationException("Default command handler not found");
     }
 
-    public IBotCommandHandler GetHandler(string command)
+    public IBotCommandHandler? GetHandler(string command)
     {
         var key = command.Split(' ')[0].ToLowerInvariant();
 
         return _handlers.TryGetValue(key, out var handler)
             ? handler
-            : _defaultHandler;
+            : null;
+    }
+
+    public IBotCommandHandler GetHandlerWithDefault(string command)
+    {
+        var handler = GetHandler(command);
+        handler ??= _defaultHandler;
+        return handler;
     }
 }

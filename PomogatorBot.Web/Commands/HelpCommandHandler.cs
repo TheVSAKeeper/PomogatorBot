@@ -18,7 +18,7 @@ public class HelpCommandHandler : IBotCommandHandler, ICommandMetadata
 
     public string Command => Metadata.Command;
 
-    public Task<BotResponse> HandleAsync(Message message, CancellationToken ct)
+    public Task<BotResponse> HandleAsync(Message message, CancellationToken cancellationToken)
     {
         var helpText = string.Join("\n", _commands
             .Select(c => $"/{c.Command} - {c.Description}"));

@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using PomogatorBot.Web.CallbackQueries.Common;
 using PomogatorBot.Web.Commands.Common;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
@@ -32,12 +33,14 @@ try
 
     builder.Services.AddHostedService<BotBackgroundService>();
 
-    builder.Services
-        .AddBotCommandHandlers(typeof(Program).Assembly)
-        .AddScoped<IKeyboardFactory, KeyboardFactory>()
-        .AddScoped<IUserService, UserService>()
-        .AddScoped<CommandRouter>()
-        ;
+    builder.Services.AddBotCommandHandlers(typeof(Program).Assembly)
+        .AddScoped<CommandRouter>();
+
+    builder.Services.AddBotCallbackQueryHandlers(typeof(Program).Assembly)
+        .AddScoped<CallbackQueryRouter>();
+
+    builder.Services.AddScoped<IKeyboardFactory, KeyboardFactory>()
+        .AddScoped<IUserService, UserService>();
 
     builder.Services.AddProblemDetails(options =>
     {
