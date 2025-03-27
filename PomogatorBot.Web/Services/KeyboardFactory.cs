@@ -7,28 +7,23 @@ namespace PomogatorBot.Web.Services;
 public interface IKeyboardFactory
 {
     InlineKeyboardMarkup CreateForSubscriptions(Subscribes subscriptions);
-    InlineKeyboardMarkup CreateForWelcome(bool userExists);
+    Task<InlineKeyboardMarkup> CreateForWelcome(long? userId = null, CancellationToken cancellationToken = default);
 }
 
-public class KeyboardFactory : IKeyboardFactory
+public class KeyboardFactory(IUserService userService) : IKeyboardFactory
 {
     public InlineKeyboardMarkup CreateForSubscriptions(Subscribes subscriptions)
     {
-        var buttons = new List<InlineKeyboardButton[]>();
+        var buttons = SubscriptionExtensions.GetSubscriptionMetadata()
+            .Values
+            .Where(x => x.Subscription is not Subscribes.None and not Subscribes.All)
+            .Select(x => MakeSubscriptionButton(x, subscriptions))
+            .Select(x => new[] { x })
+            .ToList();
 
-        foreach (var (subValue, metaData) in SubscriptionExtensions.GetSubscriptionMetadata())
-        {
-            var button = MakeSubscriptionButton(metaData.DisplayName,
-                subValue,
-                subscriptions);
-
-            buttons.Add([button]);
-        }
-
-        // TODO: Подумать над вынесением префиксов в SubscriptionManagementHandler
         buttons.Add([
-            InlineKeyboardButton.WithCallbackData("✅ Включить все", "sub_all"),
-            InlineKeyboardButton.WithCallbackData("❌ Выключить все", "sub_none"),
+            InlineKeyboardButton.WithCallbackData("✅ Включить все", ToggleSubscriptionHandler.GetFormatedToggle(Subscribes.All)),
+            InlineKeyboardButton.WithCallbackData("❌ Выключить все", ToggleSubscriptionHandler.GetFormatedToggle(Subscribes.None)),
         ]);
 
         buttons.Add([
@@ -38,11 +33,12 @@ public class KeyboardFactory : IKeyboardFactory
         return new(buttons);
     }
 
-    public InlineKeyboardMarkup CreateForWelcome(bool userExists)
+    public async Task<InlineKeyboardMarkup> CreateForWelcome(long? userId = null, CancellationToken cancellationToken = default)
     {
         List<InlineKeyboardButton[]> buttons = [];
+        var exists = userId != null && await userService.ExistsAsync(userId.Value, cancellationToken);
 
-        if (userExists)
+        if (exists)
         {
             buttons.Add([
                 InlineKeyboardButton.WithCallbackData("📌 Мой профиль", MeCommandHandler.Metadata.Command),
@@ -68,10 +64,10 @@ public class KeyboardFactory : IKeyboardFactory
         return new(buttons);
     }
 
-    private static InlineKeyboardButton MakeSubscriptionButton(string? displayName, Subscribes subscription, Subscribes current)
+    private static InlineKeyboardButton MakeSubscriptionButton(SubscriptionMeta meta, Subscribes current)
     {
-        var isActive = current.HasFlag(subscription);
-        var buttonText = $"{displayName} {(isActive ? "✅" : "❌")}";
-        return InlineKeyboardButton.WithCallbackData(buttonText, $"toggle_{subscription}");
+        var isActive = current.HasFlag(meta.Subscription);
+        var buttonText = $"{meta.Icon} {meta.DisplayName} {(isActive ? "✅" : "❌")}";
+        return InlineKeyboardButton.WithCallbackData(buttonText, ToggleSubscriptionHandler.GetFormatedToggle(meta.Subscription));
     }
 }

@@ -6,9 +6,16 @@ namespace PomogatorBot.Web.CallbackQueries;
 
 public class ToggleSubscriptionHandler(IUserService userService, ILogger<ToggleSubscriptionHandler> logger) : ICallbackQueryHandler
 {
+    private const string TogglePrefix = "toggle_";
+
+    public static string GetFormatedToggle(Subscribes subscription)
+    {
+        return TogglePrefix + subscription;
+    }
+
     public bool CanHandle(string callbackData)
     {
-        return callbackData.StartsWith("toggle_", StringComparison.OrdinalIgnoreCase);
+        return callbackData.StartsWith(TogglePrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<BotResponse> HandleCallbackAsync(CallbackQuery callbackQuery, CancellationToken cancellationToken)
@@ -29,7 +36,13 @@ public class ToggleSubscriptionHandler(IUserService userService, ILogger<ToggleS
             return new(Messages.JoinBefore);
         }
 
-        user.Subscriptions ^= subscription;
+        user.Subscriptions = subscription switch
+        {
+            Subscribes.All => Subscribes.All,
+            Subscribes.None => Subscribes.None,
+            _ => user.Subscriptions ^= subscription,
+        };
+
         await userService.SaveAsync(user, cancellationToken);
 
         logger.LogInformation("Toggled subscription {Subscription} for user {UserId}", subscription, userId);
