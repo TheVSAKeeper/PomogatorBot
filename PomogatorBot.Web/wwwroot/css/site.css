@@ -412,10 +412,11 @@ h1 {
     transition: all 0.3s ease;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
+    --sub-color: #00bcd4;
 }
 
 .subscription-item:hover {
-    background: rgba(0, 188, 212, 0.1);
+    background: color-mix(in srgb, var(--sub-color) 10%, transparent);
 }
 
 .subscription-item input {
@@ -431,12 +432,13 @@ h1 {
     height: 20px;
     margin-right: 12px;
     transition: all 0.3s ease;
-    border: 2px solid #00bcd4;
+    border: 2px solid;
+    border-color: var(--sub-color);
     border-radius: 5px;
 }
 
 .subscription-item input:checked ~ .checkmark {
-    background: #00bcd4;
+    background: var(--sub-color);
     box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
 }
 

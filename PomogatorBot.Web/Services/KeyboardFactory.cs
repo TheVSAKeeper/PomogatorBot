@@ -1,7 +1,8 @@
-﻿using PomogatorBot.Web.Infrastructure.Entities;
+﻿using PomogatorBot.Web.CallbackQueries;
+using PomogatorBot.Web.Commands;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace PomogatorBot.Web.Commands.Common;
+namespace PomogatorBot.Web.Services;
 
 public interface IKeyboardFactory
 {
@@ -13,34 +14,26 @@ public class KeyboardFactory : IKeyboardFactory
 {
     public InlineKeyboardMarkup CreateForSubscriptions(Subscribes subscriptions)
     {
-        var buttons = new List<InlineKeyboardButton[]>
+        var buttons = new List<InlineKeyboardButton[]>();
+
+        foreach (var (subValue, metaData) in SubscriptionExtensions.GetSubscriptionMetadata())
         {
-            new[]
-            {
-                MakeSubscriptionButton("Стримы", Subscribes.Streams, subscriptions),
-            },
-            new[]
-            {
-                MakeSubscriptionButton("Menasi", Subscribes.Menasi, subscriptions),
-            },
-            new[]
-            {
-                MakeSubscriptionButton("Доброе утро", Subscribes.DobroeUtro, subscriptions),
-            },
-            new[]
-            {
-                MakeSubscriptionButton("Споки-ноки", Subscribes.SpokiNoki, subscriptions),
-            },
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("✅ Включить все", "sub_all"),
-                InlineKeyboardButton.WithCallbackData("❌ Выключить все", "sub_none"),
-            },
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("🔙 Назад", "menu_back"),
-            },
-        };
+            var button = MakeSubscriptionButton(metaData.DisplayName,
+                subValue,
+                subscriptions);
+
+            buttons.Add([button]);
+        }
+
+        // TODO: Подумать над вынесением префиксов в SubscriptionManagementHandler
+        buttons.Add([
+            InlineKeyboardButton.WithCallbackData("✅ Включить все", "sub_all"),
+            InlineKeyboardButton.WithCallbackData("❌ Выключить все", "sub_none"),
+        ]);
+
+        buttons.Add([
+            InlineKeyboardButton.WithCallbackData("🔙 Назад", NavigationHandler.MenuBack),
+        ]);
 
         return new(buttons);
     }
@@ -75,9 +68,10 @@ public class KeyboardFactory : IKeyboardFactory
         return new(buttons);
     }
 
-    private static InlineKeyboardButton MakeSubscriptionButton(string name, Subscribes subscription, Subscribes current)
+    private static InlineKeyboardButton MakeSubscriptionButton(string? displayName, Subscribes subscription, Subscribes current)
     {
         var isActive = current.HasFlag(subscription);
-        return InlineKeyboardButton.WithCallbackData($"{(isActive ? "✅" : "❌")} {name}", $"toggle_{subscription}");
+        var buttonText = $"{displayName} {(isActive ? "✅" : "❌")}";
+        return InlineKeyboardButton.WithCallbackData(buttonText, $"toggle_{subscription}");
     }
 }

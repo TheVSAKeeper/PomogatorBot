@@ -1,6 +1,4 @@
 ﻿using PomogatorBot.Web.CallbackQueries.Common;
-using PomogatorBot.Web.Commands.Common;
-using PomogatorBot.Web.Infrastructure.Entities;
 using PomogatorBot.Web.Services;
 using Telegram.Bot.Types;
 
