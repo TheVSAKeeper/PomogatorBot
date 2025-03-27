@@ -16,8 +16,11 @@ public static class GetSubscriptions
 
         public override async Task HandleAsync(CancellationToken cancellationToken)
         {
-            var meta = SubscriptionExtensions.GetSubscriptionMetadata();
-            await SendOkAsync(new(meta.Values), cancellationToken);
+            var meta = SubscriptionExtensions.GetSubscriptionMetadata()
+                .Values
+                .Where(x => x.Subscription is not Subscribes.None and not Subscribes.All);
+
+            await SendOkAsync(new(meta), cancellationToken);
         }
     }
 }

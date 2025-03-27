@@ -20,11 +20,6 @@ public static class SubscriptionExtensions
 
         foreach (Subscribes value in Enum.GetValues(type))
         {
-            if (value is Subscribes.None or Subscribes.All)
-            {
-                continue;
-            }
-
             var member = type.GetMember(value.ToString())[0];
             var descriptionAttribute = member.GetCustomAttribute<DescriptionAttribute>();
             var metaAttribute = member.GetCustomAttribute<SubscriptionMetaAttribute>();
@@ -36,10 +31,11 @@ public static class SubscriptionExtensions
 
             result[value] = new()
             {
-                Subscribe = value,
+                Subscription = value,
                 DisplayName = metaAttribute.DisplayName,
                 Description = descriptionAttribute?.Description ?? value.ToString(),
                 Color = metaAttribute.Color,
+                Icon = metaAttribute.Icon,
             };
         }
 

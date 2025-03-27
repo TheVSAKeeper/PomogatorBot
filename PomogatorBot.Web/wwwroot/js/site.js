@@ -337,8 +337,8 @@ function renderSubscriptions() {
     container.innerHTML = '';
 
     subscriptionMeta.forEach(meta => {
-        const value = parseInt(meta.subscribe);
-        const label = meta.displayName || meta.description;
+        const value = meta.subscription;
+        const label = meta.icon + meta.displayName || meta.description;
         const color = meta.color || '#00bcd4';
 
         const labelElement = `

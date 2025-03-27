@@ -158,15 +158,10 @@ public class BotBackgroundService(
     private async Task EditOrSendResponse(ITelegramBotClient bot, long chatId, int? messageId, BotResponse response, CancellationToken cancellationToken)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
-        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
         var keyboardFactory = scope.ServiceProvider.GetRequiredService<IKeyboardFactory>();
 
-        var userExists = await userService.ExistsAsync(chatId, cancellationToken);
         var keyboard = response.KeyboardMarkup;
-
-        // TODO: Проверить и убрать избыточные места создания
-        // TODO: Подумать над внедрением UserService в фабрику
-        keyboard ??= keyboardFactory.CreateForWelcome(userExists);
+        keyboard ??= await keyboardFactory.CreateForWelcome(chatId, cancellationToken);
 
         if (messageId.HasValue)
         {
