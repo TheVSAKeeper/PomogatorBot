@@ -1,7 +1,6 @@
-using FastEndpoints;
+﻿using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PomogatorBot.Web.Infrastructure;
-using PomogatorBot.Web.Infrastructure.Entities;
 using Telegram.Bot;
 
 namespace PomogatorBot.Web.Endpoints;
@@ -27,7 +26,7 @@ public static class NotifyUsers
         public override async Task HandleAsync(Request request, CancellationToken cancellationToken)
         {
             var users = await dbContext.Users
-                .Where(x => (x.Subscriptions & request.Subscribes) != Subscribes.None)
+                .Where(x => (x.Subscriptions & request.Subscribes) == request.Subscribes)
                 .ToListAsync(cancellationToken);
 
             var successfulSends = 0;

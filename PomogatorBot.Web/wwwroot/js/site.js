@@ -85,7 +85,11 @@ document.querySelector('.message-field').addEventListener('input', function () {
 
 function addToHistory(message) {
     messageHistory.unshift(message);
-    if (messageHistory.length > 50) messageHistory.pop();
+
+    if (messageHistory.length > 100) {
+        messageHistory.pop();
+    }
+
     localStorage.setItem('messageHistory', JSON.stringify(messageHistory));
     updateHistory();
 }
@@ -314,4 +318,39 @@ function escapeHtml(unsafe) {
     });
 }
 
-updateHistory();
+let subscriptionMeta = {};
+
+async function loadSubscriptionMeta() {
+    try {
+        const response = await fetch('/subscriptions/meta');
+        let data = await response.json();
+        subscriptionMeta = data.subscriptionMetas;
+        renderSubscriptions();
+    } catch (error) {
+        console.error('Ошибка загрузки подписок:', error);
+        showNotification('❌ Не удалось загрузить типы подписок', '#ff6699');
+    }
+}
+
+function renderSubscriptions() {
+    const container = document.getElementById('subscription-container');
+    container.innerHTML = '';
+
+    subscriptionMeta.forEach(meta => {
+        const value = parseInt(meta.subscribe);
+        const label = meta.displayName || meta.description;
+        const color = meta.color || '#00bcd4';
+
+        const labelElement = `
+            <label class="subscription-item" style="--sub-color: ${color}">
+                <input type="checkbox" name="subscribes" value="${value}">
+                <span class="checkmark"></span>
+                <span class="subscription-label">${label}</span>
+            </label>
+        `;
+        container.insertAdjacentHTML('beforeend', labelElement);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', updateHistory);
+document.addEventListener('DOMContentLoaded', loadSubscriptionMeta);

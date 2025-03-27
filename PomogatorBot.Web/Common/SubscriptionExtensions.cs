@@ -1,0 +1,48 @@
+﻿using System.ComponentModel;
+using System.Reflection;
+
+namespace PomogatorBot.Web.Common;
+
+public static class SubscriptionExtensions
+{
+    private static readonly Lazy<Dictionary<Subscribes, SubscriptionMeta>> CachedMetadata =
+        new(InitializeMetadata, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    public static Dictionary<Subscribes, SubscriptionMeta> GetSubscriptionMetadata()
+    {
+        return CachedMetadata.Value;
+    }
+
+    private static Dictionary<Subscribes, SubscriptionMeta> InitializeMetadata()
+    {
+        var result = new Dictionary<Subscribes, SubscriptionMeta>();
+        var type = typeof(Subscribes);
+
+        foreach (Subscribes value in Enum.GetValues(type))
+        {
+            if (value is Subscribes.None or Subscribes.All)
+            {
+                continue;
+            }
+
+            var member = type.GetMember(value.ToString())[0];
+            var descriptionAttribute = member.GetCustomAttribute<DescriptionAttribute>();
+            var metaAttribute = member.GetCustomAttribute<SubscriptionMetaAttribute>();
+
+            if (metaAttribute == null)
+            {
+                throw new InvalidOperationException($"The type {type} is not marked with {nameof(SubscriptionMetaAttribute)}");
+            }
+
+            result[value] = new()
+            {
+                Subscribe = value,
+                DisplayName = metaAttribute.DisplayName,
+                Description = descriptionAttribute?.Description ?? value.ToString(),
+                Color = metaAttribute.Color,
+            };
+        }
+
+        return result;
+    }
+}

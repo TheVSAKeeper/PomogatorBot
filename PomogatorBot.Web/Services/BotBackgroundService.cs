@@ -1,8 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using PomogatorBot.Web.CallbackQueries.Common;
+﻿using PomogatorBot.Web.CallbackQueries.Common;
 using PomogatorBot.Web.Commands.Common;
-using PomogatorBot.Web.Infrastructure;
-using PomogatorBot.Web.Infrastructure.Entities;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -14,7 +11,6 @@ namespace PomogatorBot.Web.Services;
 public class BotBackgroundService(
     ITelegramBotClient botClient,
     IServiceProvider serviceProvider,
-    IDbContextFactory<ApplicationDbContext> dbContextFactory,
     ILogger<BotBackgroundService> logger)
     : BackgroundService
 {
@@ -43,12 +39,6 @@ public class BotBackgroundService(
         botClient.StartReceiving(HandleUpdateAsync, HandlePollingErrorAsync, _receiverOptions, stoppingToken);
     }
 
-    private Task HandleUnknownUpdateAsync(Update update)
-    {
-        logger.LogWarning("Получен неподдерживаемый тип обновления: {UpdateType}", update.Type);
-        return Task.CompletedTask;
-    }
-
     private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
     {
         try
@@ -66,6 +56,12 @@ public class BotBackgroundService(
         {
             logger.LogError(exception, "Обработка ошибок Update {UpdateId}", update.Id);
         }
+    }
+
+    private Task HandleUnknownUpdateAsync(Update update)
+    {
+        logger.LogWarning("Получен неподдерживаемый тип обновления: {UpdateType}", update.Type);
+        return Task.CompletedTask;
     }
 
     private async Task HandleMessageAsync(ITelegramBotClient bot, Message message, CancellationToken cancellationToken)
@@ -91,10 +87,7 @@ public class BotBackgroundService(
         }
     }
 
-    private async Task HandleCallbackQueryAsync(
-        ITelegramBotClient bot,
-        CallbackQuery callbackQuery,
-        CancellationToken cancellationToken)
+    private async Task HandleCallbackQueryAsync(ITelegramBotClient bot, CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         if (callbackQuery.Data == null || callbackQuery.Message == null)
         {
@@ -147,16 +140,13 @@ public class BotBackgroundService(
         await bot.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: cancellationToken);
     }
 
-    private async Task UpdateDynamicMarkup(
-        ITelegramBotClient bot,
-        Message message,
-        CancellationToken cancellationToken)
+    private async Task UpdateDynamicMarkup(ITelegramBotClient bot, Message message, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var user = await dbContext.Users.FindAsync([message.Chat.Id], cancellationToken);
-
         await using var scope = serviceProvider.CreateAsyncScope();
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
         var keyboardFactory = scope.ServiceProvider.GetRequiredService<IKeyboardFactory>();
+
+        var user = await userService.GetAsync(message.Chat.Id, cancellationToken);
         var newMarkup = keyboardFactory.CreateForSubscriptions(user?.Subscriptions ?? Subscribes.None);
 
         await bot.EditMessageReplyMarkup(message.Chat.Id,
@@ -167,12 +157,15 @@ public class BotBackgroundService(
 
     private async Task EditOrSendResponse(ITelegramBotClient bot, long chatId, int? messageId, BotResponse response, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var userExists = dbContext.Users.Any(x => x.UserId == chatId);
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+        var keyboardFactory = scope.ServiceProvider.GetRequiredService<IKeyboardFactory>();
+
+        var userExists = await userService.ExistsAsync(chatId, cancellationToken);
         var keyboard = response.KeyboardMarkup;
 
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var keyboardFactory = scope.ServiceProvider.GetRequiredService<IKeyboardFactory>();
+        // TODO: Проверить и убрать избыточные места создания
+        // TODO: Подумать над внедрением UserService в фабрику
         keyboard ??= keyboardFactory.CreateForWelcome(userExists);
 
         if (messageId.HasValue)

@@ -13,44 +13,29 @@
     <div class="container">
         <textarea class="message-field"
                   maxlength="500"
-                  placeholder="Введите ваше священное послание..."></textarea>
+                  placeholder="Введите ваше священное послание...">
+        </textarea>
         <div class="button-group">
             <button class="send-button"
-                    onclick="sendMessage()">Возвестить пастве
+                    onclick="sendMessage()">
+                Возвестить пастве
             </button>
             <div class="edit-buttons">
                 <button class="edit-button save-edit-btn"
-                        onclick="saveEdit()">💾 Сохранить
+                        onclick="saveEdit()">
+                    💾 Сохранить
                 </button>
                 <button class="edit-button cancel-edit-btn"
-                        onclick="cancelEdit()">❌ Отменить
+                        onclick="cancelEdit()">
+                    ❌ Отменить
                 </button>
             </div>
         </div>
     </div>
     <div class="subscription-selector">
         <div class="subscription-title">Выбрать подписки:</div>
-        <div class="subscription-grid">
-            <label class="subscription-item">
-                <input type="checkbox" name="subscribes" value="1">
-                <span class="checkmark"></span>
-                <span class="subscription-label">🎮 Стримы</span>
-            </label>
-            <label class="subscription-item">
-                <input type="checkbox" name="subscribes" value="2">
-                <span class="checkmark"></span>
-                <span class="subscription-label">🎨 Menasi</span>
-            </label>
-            <label class="subscription-item">
-                <input type="checkbox" name="subscribes" value="4">
-                <span class="checkmark"></span>
-                <span class="subscription-label">🌅 Доброе утро</span>
-            </label>
-            <label class="subscription-item">
-                <input type="checkbox" name="subscribes" value="8">
-                <span class="checkmark"></span>
-                <span class="subscription-label">🌙 Spoki Noki</span>
-            </label>
+        <div class="subscription-grid"
+             id="subscription-container">
         </div>
     </div>
 
@@ -69,14 +54,16 @@
         <div class="history-header">
             <div class="history-title">История посланий</div>
             <button class="clear-history-btn"
-                    onclick="clearHistory()">Очистить историю
+                    onclick="clearHistory()">
+                Очистить историю
             </button>
         </div>
         <div id="history-list"></div>
     </div>
 
     <div class="notification"
-         id="notification"></div>
+         id="notification">
+    </div>
 
     <script src="js/site.js"></script>
 </body>
