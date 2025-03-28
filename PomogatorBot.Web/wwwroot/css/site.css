@@ -117,6 +117,14 @@ h1 {
     color: white;
     border-radius: 8px;
     background: #00bcd4;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateX(120%);
+}
+
+.notification.visible {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 @keyframes slideIn {
@@ -462,4 +470,38 @@ h1 {
 .subscription-label {
     font-size: 0.95rem;
     color: #fff;
+}
+
+.stats-header {
+    font-weight: 500;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 6px 0;
+    font-size: 0.95rem;
+}
+
+.message-stats {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.stat-success {
+    color: #07d400;
+}
+
+.stat-failed {
+    color: #ff6699;
+}
+
+.stat-total {
+    color: #888;
 }
