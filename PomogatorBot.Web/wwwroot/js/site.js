@@ -35,29 +35,39 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 message: textarea.value,
-                subscribes
+                subscribes: subscribes
             })
         });
+
+        const result = await response.json();
 
         if (response.ok) {
             const newMessage = {
                 text: textarea.value,
                 date: new Date().toLocaleString(),
-                status: 'success'
+                status: 'success',
+                stats: {
+                    total: result.totalUsers,
+                    success: result.successfulSends,
+                    failed: result.failedSends
+                }
             };
+
             addToHistory(newMessage);
             textarea.classList.remove('error');
             textarea.value = '';
-            showNotification('✅ Послание доставлено!', '#00bcd4');
+            showStatsNotification(result);
         } else {
-            throw new Error('Ошибка отправки');
+            throw new Error(result.message || 'Ошибка отправки');
         }
     } catch (error) {
         const errorMessage = {
             text: textarea.value,
             date: new Date().toLocaleString(),
-            status: 'error'
+            status: 'error',
+            error: error.message
         };
+
         addToHistory(errorMessage);
         console.error('Error:', error);
         showNotification('❌ Ошибка отправки', '#ff6699');
@@ -67,16 +77,6 @@ async function sendMessage() {
     }
 }
 
-function showNotification(text, color) {
-    const notification = document.getElementById('notification');
-    notification.textContent = text;
-    notification.style.backgroundColor = color;
-    notification.style.display = 'block';
-
-    setTimeout(() => {
-        notification.style.display = 'none';
-    }, 3000);
-}
 
 document.querySelector('.message-field').addEventListener('input', function () {
     this.classList.remove('error');
@@ -144,9 +144,18 @@ function createMessageElement(msg, index, isFavorite) {
     const safeDate = escapeHtml(msg.date);
     const safeText = escapeHtml(msg.text);
 
+    const statsHTML = msg.stats ? `
+        <div class="message-stats">
+            <span class="stat-success">▲ ${msg.stats.success}</span>
+            <span class="stat-failed">▼ ${msg.stats.failed}</span>
+            <span class="stat-total">◼ ${msg.stats.total}</span>
+        </div>
+    ` : '';
+
     item.innerHTML = `
             <div class="message-date">${safeDate}</div>
             <div class="message-preview">${safeText}</div>
+            ${statsHTML}
             <div class="message-actions">
                 <div class="copy-notice">Скопировано!</div>
                 <button class="action-btn favorite-btn ${msg.favorite ? 'active' : ''}"
@@ -233,53 +242,6 @@ function saveEdit(isClear = true) {
     }
 }
 
-function initDragAndDrop() {
-    const draggables = document.querySelectorAll('.draggable');
-    const container = document.getElementById('favorites-list');
-
-    draggables.forEach(draggable => {
-        draggable.addEventListener('dragstart', () => draggable.classList.add('dragging'));
-
-        draggable.addEventListener('dragend', () => draggable.classList.remove('dragging'));
-    });
-
-    container.addEventListener('dragover', e => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(container, e.clientY);
-        const draggable = document.querySelector('.dragging');
-        if (afterElement == null) {
-            container.appendChild(draggable);
-        } else {
-            container.insertBefore(draggable, afterElement);
-        }
-        updateFavoritesOrder();
-    });
-}
-
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.draggable:not(.dragging)')];
-
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-
-function updateFavoritesOrder() {
-    const favoritesList = document.getElementById('favorites-list');
-    const newOrder = [...favoritesList.children].map(item =>
-        messageHistory[parseInt(item.dataset.index)]
-    );
-
-    const remaining = messageHistory.filter(msg => !msg.favorite);
-    messageHistory = [...newOrder, ...remaining];
-    localStorage.setItem('messageHistory', JSON.stringify(messageHistory));
-}
 
 function deleteMessage(index) {
     messageHistory.splice(index, 1);
@@ -288,14 +250,6 @@ function deleteMessage(index) {
     showNotification('🗑️ Сообщение удалено', '#666');
 }
 
-function toggleFavorite(index) {
-    if (index === editingIndex) {
-        cancelEdit();
-    }
-    messageHistory[index].favorite = !messageHistory[index].favorite;
-    localStorage.setItem('messageHistory', JSON.stringify(messageHistory));
-    updateHistory();
-}
 
 function clearHistory() {
     if (confirm('Очистить всю историю, кроме избранных сообщений?')) {
@@ -315,40 +269,6 @@ function escapeHtml(unsafe) {
             '"': '&quot;',
             "'": '&#039;'
         }[match];
-    });
-}
-
-let subscriptionMeta = {};
-
-async function loadSubscriptionMeta() {
-    try {
-        const response = await fetch('/subscriptions/meta');
-        let data = await response.json();
-        subscriptionMeta = data.subscriptionMetas;
-        renderSubscriptions();
-    } catch (error) {
-        console.error('Ошибка загрузки подписок:', error);
-        showNotification('❌ Не удалось загрузить типы подписок', '#ff6699');
-    }
-}
-
-function renderSubscriptions() {
-    const container = document.getElementById('subscription-container');
-    container.innerHTML = '';
-
-    subscriptionMeta.forEach(meta => {
-        const value = meta.subscription;
-        const label = meta.icon + meta.displayName || meta.description;
-        const color = meta.color || '#00bcd4';
-
-        const labelElement = `
-            <label class="subscription-item" style="--sub-color: ${color}">
-                <input type="checkbox" name="subscribes" value="${value}">
-                <span class="checkmark"></span>
-                <span class="subscription-label">${label}</span>
-            </label>
-        `;
-        container.insertAdjacentHTML('beforeend', labelElement);
     });
 }
 
