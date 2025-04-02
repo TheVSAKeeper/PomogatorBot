@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Infrastructure.Entities;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 
 namespace PomogatorBot.Web.Services;
 
@@ -66,7 +67,6 @@ public class UserService(
             .ToListAsync(cancellationToken);
 
         var successfulSends = 0;
-        var failedSends = 0;
 
         foreach (var user in users)
         {
@@ -82,13 +82,17 @@ public class UserService(
 
                 successfulSends++;
             }
+            catch (ApiRequestException exception) when (exception.ErrorCode == 403 && exception.Message.Contains("bot was blocked by the user"))
+            {
+                logger.LogInformation("Пользователь {UserId} заблокировал бота. Удаляем учетную запись", user.UserId);
+                await DeleteAsync(user.UserId, cancellationToken);
+            }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Error sending message to user {UserId}", user.UserId);
-                failedSends++;
             }
         }
 
-        return new(users.Count, successfulSends, failedSends);
+        return new(users.Count, successfulSends, users.Count - successfulSends);
     }
 }
