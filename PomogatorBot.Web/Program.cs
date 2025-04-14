@@ -76,6 +76,23 @@ try
         await context.Response.SendFileAsync(Path.Combine("wwwroot", "index.html"));
     });
 
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            var dbContext = services.GetRequiredService<ApplicationDbContext>();
+            dbContext.Database.Migrate();
+
+            Log.Information("Промигрировано");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("migration fail", ex);
+        }
+    }
+
+
     app.Run();
 }
 catch (Exception exception)
