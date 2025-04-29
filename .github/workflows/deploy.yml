@@ -1,0 +1,48 @@
+name: Deploy .NET 9.0 to Local IIS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PUBLISH_FOLDER: 'publish'
+  PROJECT_FILE: 'PomogatorBot.Web.csproj'
+  WEBSITE_NAME: '!bob217pomogator'
+  WEBSITE_PATH: 'E:\publish\bob217pomogator\production\web_test'
+
+jobs:
+  build-and-deploy:
+    runs-on:
+      labels: BobGroupWindowsServer
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET Core SDK ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_FILE }}
+
+    - name: Build
+      run: dotnet build ${{ env.PROJECT_FILE }} --configuration Debug --no-restore
+
+    - name: Publish
+      run: dotnet publish ${{ env.PROJECT_FILE }} -c Debug -o ${{ env.PUBLISH_FOLDER }} --no-build
+
+    - name: Stop IIS Website
+      run: Stop-WebSite -Name "${{ env.WEBSITE_NAME }}"
+      shell: pwsh
+
+    - name: Copy new files
+      run: Copy-Item -Path "${{ env.PUBLISH_FOLDER }}\*" -Destination "${{ env.WEBSITE_PATH }}" -Recurse -Force
+      shell: pwsh
+
+    - name: Start IIS Website
+      run: Start-WebSite -Name "${{ env.WEBSITE_NAME }}"
+      shell: pwsh
