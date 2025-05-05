@@ -33,7 +33,7 @@ h1 {
 
 .container {
     box-sizing: border-box;
-    padding: 2rem;
+    padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.05);
@@ -46,8 +46,7 @@ h1 {
     box-sizing: border-box;
     width: 100%;
     height: 150px;
-    margin: 1rem 0;
-    padding: 1rem;
+    padding: 16px;
     resize: vertical;
     transition: all 0.3s ease;
     color: #fff;
@@ -73,7 +72,7 @@ h1 {
     display: block;
     width: 100%;
     max-width: 350px;
-    margin: 1rem auto;
+    margin: 16px auto 0 auto;
     padding: 1rem 1.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -151,7 +150,6 @@ h1 {
 .history-container {
     overflow-x: hidden;
     overflow-y: auto;
-    max-height: 400px;
     margin-top: 2rem;
     padding: 1.5rem;
     border-radius: 16px;
@@ -277,14 +275,6 @@ h1 {
     opacity: 1;
 }
 
-.message-favorite {
-    border-right: 4px solid #ffcc00;
-}
-
-.favorite-btn.active {
-    color: #ffcc00;
-}
-
 .history-header {
     display: flex;
     align-items: center;
@@ -306,90 +296,6 @@ h1 {
 .clear-history-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(255, 102, 153, 0.3);
-}
-
-.favorites-container {
-    margin-bottom: 2rem;
-}
-
-.favorites-title {
-    font-family: "Poppins", sans-serif;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-    color: #ffcc00;
-    gap: 10px;
-}
-
-.favorites-title::before {
-    font-size: 1.2em;
-    content: "⭐";
-}
-
-.draggable {
-    cursor: move;
-    transition: transform 0.2s ease;
-}
-
-.draggable.dragging {
-    transform: scale(0.98);
-    opacity: 0.5;
-}
-
-.separator {
-    height: 2px;
-    margin: 2rem 0;
-    background: linear-gradient(90deg, transparent, #00bcd4, transparent);
-}
-
-.message-item.editing {
-    border-color: #ffcc00 !important;
-    background: rgba(255, 204, 0, 0.1) !important;
-}
-
-.button-group {
-    display: flex;
-    flex-direction: column;
-    margin-top: 1rem;
-    gap: 10px;
-}
-
-.save-edit-btn {
-    order: 1;
-    background: linear-gradient(45deg, #b69411, #bb8201);
-}
-
-.cancel-edit-btn {
-    order: 2;
-    background: linear-gradient(45deg, #666, #444);
-}
-
-.edit-buttons {
-    display: none;
-    margin: 0 auto;
-}
-
-.edit-button {
-    font-size: 0.75rem;
-    font-weight: bold;
-    display: block;
-    max-width: 200px;
-    margin: 0.5rem 0;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: white;
-    border: none;
-    border-radius: 50px;
-}
-
-.editing-mode .edit-buttons {
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
 }
 
 .subscription-selector {
