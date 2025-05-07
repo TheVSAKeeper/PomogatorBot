@@ -48,7 +48,18 @@ public class BroadcastCommandHandler(IConfiguration configuration, IUserService 
                 return new("Пожалуйста, укажите сообщение для рассылки после параметров подписок.", new());
             }
 
-            subscribes = ParseSubscriptions(subscriptionParam);
+            try
+            {
+                subscribes = ParseSubscriptions(subscriptionParam);
+            }
+            catch (Exception ex)
+            {
+                return new(ex.Message);
+            }
+        }
+        else
+        {
+            return new("not found [ or ]");
         }
 
         var response = await userService.NotifyAsync(broadcastMessage, subscribes, cancellationToken);
@@ -100,6 +111,10 @@ public class BroadcastCommandHandler(IConfiguration configuration, IUserService 
             if (Enum.TryParse<Subscribes>(part, true, out var subscription))
             {
                 result |= subscription;
+            }
+            else
+            {
+                throw new Exception(part + " not parsed");
             }
         }
 
