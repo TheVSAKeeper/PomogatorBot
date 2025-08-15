@@ -7,6 +7,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<PomogatorUser> Users => Set<PomogatorUser>();
     public DbSet<BroadcastHistory> BroadcastHistory => Set<BroadcastHistory>();
+    public DbSet<ExternalClientEntity> ExternalClients => Set<ExternalClientEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

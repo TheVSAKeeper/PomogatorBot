@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using PomogatorBot.Web.CallbackQueries.Common;
@@ -6,6 +7,7 @@ using PomogatorBot.Web.Common.Configuration;
 using PomogatorBot.Web.Common.Keyboard;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
+using PomogatorBot.Web.Services.ExternalClients;
 using Serilog;
 using Serilog.Events;
 using Telegram.Bot;
@@ -70,6 +72,7 @@ try
         .AddScoped<MessagePreviewService>()
         .AddScoped<MessageTemplateService>()
         .AddScoped<BroadcastHistoryService>()
+        .AddScoped<ExternalClientService>()
         .AddSingleton<BroadcastPendingService>()
         .AddSingleton<BroadcastProgressService>();
 
@@ -85,23 +88,26 @@ try
     builder.Services.AddExceptionHandler<ExceptionHandler>();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddFastEndpoints();
+
+    builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = ApiKeyAuthenticationHandler.SchemeName;
+            options.DefaultChallengeScheme = ApiKeyAuthenticationHandler.SchemeName;
+        })
+        .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
+
+    builder.Services.AddAuthorization();
     builder.Services.AddHttpContextAccessor();
 
     var app = builder.Build();
 
     app.UseExceptionHandler();
     app.UseSerilogRequestLogging();
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
+    app.UseAuthentication();
+    app.UseAuthorization();
     app.UseFastEndpoints();
 
     app.MapHealthChecks("/live");
-
-    app.MapGet("/", async context =>
-    {
-        context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(Path.Combine("wwwroot", "index.html"));
-    });
 
     using (var scope = app.Services.CreateScope())
     {
