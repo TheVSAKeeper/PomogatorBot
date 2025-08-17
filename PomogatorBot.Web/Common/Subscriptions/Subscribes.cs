@@ -12,6 +12,9 @@ public enum Subscribes
     [SubscriptionMeta("Игровые трансляции", "#ff6699", "🎮")]
     GameStreams = 1 << 1,
 
+    [SubscriptionMeta("Кино с Максимчиком", "#ff9800", "🎬")]
+    MovieWithMaximchik = 1 << 2,
+
     [SubscriptionMeta("Все подписки", "#4CAF50", "✅")]
-    All = EducationStreams | GameStreams,
+    All = EducationStreams | GameStreams | MovieWithMaximchik,
 }
