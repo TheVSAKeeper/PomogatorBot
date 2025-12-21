@@ -68,6 +68,29 @@ public class KeyboardFactory(UserService userService)
         return InlineKeyboardButton.WithCallbackData($"{Emoji.Back} Назад", callbackData);
     }
 
+    public static InlineKeyboardMarkup AddWorkflowNavigation(InlineKeyboardMarkup? keyboard)
+    {
+        var builder = KeyboardBuilder.Create();
+        if (keyboard == null)
+        {
+            return builder
+                .AddButtonRow(($"{Emoji.Back} Назад", "workflow_back"),
+                    ($"{Emoji.Error} Отмена", "workflow_cancel"))
+                .Build();
+        }
+
+        foreach (var row in keyboard.InlineKeyboard)
+        {
+            var buttons = row.Select(b => (b.Text, b.CallbackData!)).ToArray();
+            builder.AddButtonRow(buttons);
+        }
+
+        return builder
+            .AddButtonRow(($"{Emoji.Back} Назад", "workflow_back"),
+                ($"{Emoji.Error} Отмена", "workflow_cancel"))
+            .Build();
+    }
+
     /// <summary>
     /// Создает клавиатуру для управления подписками
     /// </summary>
@@ -154,6 +177,25 @@ public class KeyboardFactory(UserService userService)
             .End()
             .AddButton(Emoji.History, "Последние 20", LastMessagesCallbackHandler.ShowPrefix + "20")
             .AddButton(Emoji.Refresh, "Обновить", LastMessagesCallbackHandler.RefreshAction)
+            .Build();
+    }
+
+    public InlineKeyboardMarkup CreateForWorkflowSubscriptions()
+    {
+        var builder = KeyboardBuilder.Create();
+        var subscriptionMetas = SubscriptionExtensions.SubscriptionMetadata
+            .Values
+            .Where(x => x.Subscription is not Subscribes.None and not Subscribes.All);
+
+        foreach (var meta in subscriptionMetas)
+        {
+            builder.AddButton($"{meta.Icon} {meta.DisplayName}", $"sub_{meta.Subscription}");
+        }
+
+        return builder
+            .Grid()
+            .AddButton(Emoji.Users, "Всем пользователям", $"sub_{Subscribes.None}")
+            .End()
             .Build();
     }
 }

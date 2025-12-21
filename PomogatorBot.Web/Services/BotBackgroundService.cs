@@ -1,5 +1,8 @@
-﻿using PomogatorBot.Web.CallbackQueries.Common;
+﻿using Microsoft.Extensions.Options;
+using PomogatorBot.Web.CallbackQueries.Common;
+using PomogatorBot.Web.Common.Configuration;
 using PomogatorBot.Web.Common.Keyboard;
+using PomogatorBot.Web.Common.Workflows;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -7,9 +10,11 @@ using Telegram.Bot.Types.Enums;
 
 namespace PomogatorBot.Web.Services;
 
-public class BotBackgroundService(
+public sealed class BotBackgroundService(
     ITelegramBotClient botClient,
     IServiceProvider serviceProvider,
+    WorkflowService workflowService,
+    IOptions<AdminConfiguration> adminOptions,
     ILogger<BotBackgroundService> logger)
     : BackgroundService
 {
@@ -35,6 +40,9 @@ public class BotBackgroundService(
             var commandMetadatas = scope.ServiceProvider.GetRequiredService<IEnumerable<CommandMetadata>>();
             var botCommands = commandMetadatas.Select(x => new BotCommand(x.Command, x.Description));
             await botClient.SetMyCommands(botCommands, cancellationToken: stoppingToken);
+
+            var keyboardFactory = scope.ServiceProvider.GetRequiredService<KeyboardFactory>();
+            workflowService.RegisterWorkflow(BroadcastWorkflow.Create(keyboardFactory));
         }
 
         var me = await botClient.GetMe(stoppingToken);
@@ -76,6 +84,49 @@ public class BotBackgroundService(
         }
 
         var userId = message.From.Id;
+
+        if (workflowService.HasActiveWorkflow(userId))
+        {
+            var context = workflowService.GetContext(userId);
+            var lastMessageId = context?.LastMessageId;
+
+            var workflowResponse = await workflowService.ProcessAsync(userId, message, cancellationToken);
+            if (workflowResponse == BotResponse.Empty)
+            {
+                return;
+            }
+
+            var sentMessage = await EditOrSendResponse(bot, message.Chat.Id, lastMessageId, workflowResponse, cancellationToken);
+            if (sentMessage != null)
+            {
+                workflowService.SetLastMessageId(userId, sentMessage.MessageId);
+            }
+
+            return;
+        }
+
+        // TODO: Скорее всего костыль
+        if (IsAdmin(message) && !message.Text.StartsWith('/'))
+        {
+            logger.LogInformation("Админ {Username} инициировал прямую рассылку", message.From?.Username);
+
+            await workflowService.StartWorkflowAsync(userId, BroadcastWorkflow.Name, cancellationToken);
+
+            var workflowResponse = await workflowService.ProcessAsync(userId, message, cancellationToken);
+            if (workflowResponse == BotResponse.Empty)
+            {
+                return;
+            }
+
+            var sentMessage = await EditOrSendResponse(bot, message.Chat.Id, null, workflowResponse, cancellationToken);
+            if (sentMessage != null)
+            {
+                workflowService.SetLastMessageId(userId, sentMessage.MessageId);
+            }
+
+            return;
+        }
+
         var text = message.Text;
         var commandDescription = PerformanceLogger.GetCommandDescription(text);
 
@@ -90,9 +141,13 @@ public class BotBackgroundService(
             userId,
             () => handler.HandleAsync(message, cancellationToken));
 
-        if (string.IsNullOrWhiteSpace(response.Message) == false)
+        if (!string.IsNullOrWhiteSpace(response.Message))
         {
-            await EditOrSendResponse(bot, message.Chat.Id, null, response, cancellationToken);
+            var sentMessage = await EditOrSendResponse(bot, message.Chat.Id, null, response, cancellationToken);
+            if (sentMessage != null)
+            {
+                workflowService.SetLastMessageId(userId, sentMessage.MessageId);
+            }
         }
     }
 
@@ -104,6 +159,26 @@ public class BotBackgroundService(
         }
 
         var userId = callbackQuery.From.Id;
+
+        if (workflowService.HasActiveWorkflow(userId))
+        {
+            var context = workflowService.GetContext(userId);
+            var lastMessageId = context?.LastMessageId ?? callbackQuery.Message.MessageId;
+
+            var workflowResponse = await workflowService.ProcessCallbackAsync(userId, callbackQuery, cancellationToken);
+            if (workflowResponse != BotResponse.Empty)
+            {
+                var sentMessage = await EditOrSendResponse(bot, callbackQuery.Message.Chat.Id, lastMessageId, workflowResponse, cancellationToken);
+                if (sentMessage != null)
+                {
+                    workflowService.SetLastMessageId(userId, sentMessage.MessageId);
+                }
+
+                await bot.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: cancellationToken);
+                return;
+            }
+        }
+
         var callbackDescription = PerformanceLogger.GetCallbackDescription(callbackQuery.Data);
 
         logger.LogInformation("Получен колбэк от пользователя {UserId}: {CallbackData}", userId, callbackQuery.Data);
@@ -146,7 +221,7 @@ public class BotBackgroundService(
                     userId,
                     () => commandHandler.HandleAsync(new() { From = callbackQuery.From }, cancellationToken));
 
-                if (string.IsNullOrWhiteSpace(response.Message) == false)
+                if (!string.IsNullOrWhiteSpace(response.Message))
                 {
                     await EditOrSendResponse(bot,
                         callbackQuery.Message.Chat.Id,
@@ -180,7 +255,12 @@ public class BotBackgroundService(
             cancellationToken: cancellationToken);
     }
 
-    private async Task EditOrSendResponse(ITelegramBotClient bot, long chatId, int? messageId, BotResponse response, CancellationToken cancellationToken)
+    private async Task<Message?> EditOrSendResponse(
+        ITelegramBotClient bot,
+        long chatId,
+        int? messageId,
+        BotResponse response,
+        CancellationToken cancellationToken)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
         var keyboardFactory = scope.ServiceProvider.GetRequiredService<KeyboardFactory>();
@@ -188,35 +268,100 @@ public class BotBackgroundService(
         var keyboard = response.KeyboardMarkup;
         keyboard ??= await keyboardFactory.CreateForWelcome(chatId, cancellationToken);
 
+        if (response.DeleteSourceMessage && messageId.HasValue)
+        {
+            try
+            {
+                await bot.DeleteMessage(chatId, messageId.Value, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Ошибка при удалении сообщения {MessageId} в чате {ChatId}", messageId, chatId);
+            }
+
+            if (string.IsNullOrWhiteSpace(response.Message))
+            {
+                return null;
+            }
+
+            messageId = null;
+        }
+
         if (messageId.HasValue)
         {
             try
             {
-                await bot.EditMessageText(chatId,
+                var edited = await bot.EditMessageText(chatId,
                     messageId.Value,
                     response.Message,
                     linkPreviewOptions: LinkPreviewOptions,
                     replyMarkup: keyboard,
                     entities: response.Entities,
                     cancellationToken: cancellationToken);
+
+                HandleAutoDelete(bot, chatId, edited.MessageId, response.AutoDeleteAfter);
+                return edited;
             }
             catch (ApiRequestException exception) when (exception.Message.Contains("message is not modified", StringComparison.OrdinalIgnoreCase))
             {
-                // Игнорируем ошибку "message is not modified" - это нормальное поведение
-                // когда пытаемся обновить сообщение с тем же содержимым
+                return null;
+            }
+            catch (ApiRequestException exception) when (exception.Message.Contains("message to edit not found", StringComparison.OrdinalIgnoreCase))
+            {
+                var sent = await bot.SendMessage(chatId,
+                    response.Message,
+                    linkPreviewOptions: LinkPreviewOptions,
+                    replyMarkup: keyboard,
+                    entities: response.Entities,
+                    cancellationToken: cancellationToken);
+
+                HandleAutoDelete(bot, chatId, sent.MessageId, response.AutoDeleteAfter);
+                return sent;
             }
         }
-        else
-        {
-            var sentMessage = await bot.SendMessage(chatId,
-                response.Message,
-                linkPreviewOptions: LinkPreviewOptions,
-                replyMarkup: keyboard,
-                entities: response.Entities,
-                cancellationToken: cancellationToken);
 
-            response.OnMessageSent?.Invoke(chatId, sentMessage.MessageId);
+        var sentMessage = await bot.SendMessage(chatId,
+            response.Message,
+            linkPreviewOptions: LinkPreviewOptions,
+            replyMarkup: keyboard,
+            entities: response.Entities,
+            cancellationToken: cancellationToken);
+
+        response.OnMessageSent?.Invoke(chatId, sentMessage.MessageId);
+        HandleAutoDelete(bot, chatId, sentMessage.MessageId, response.AutoDeleteAfter);
+        return sentMessage;
+    }
+
+    private bool IsAdmin(Message message)
+    {
+        if (message.From == null)
+        {
+            return false;
         }
+
+        var adminUsername = adminOptions.Value.Username;
+        return !string.IsNullOrEmpty(adminUsername) && string.Equals(message.From.Username, adminUsername, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void HandleAutoDelete(ITelegramBotClient bot, long chatId, int messageId, TimeSpan? delay)
+    {
+        if (!delay.HasValue)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(delay.Value);
+                await bot.DeleteMessage(chatId, messageId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Ошибка при автоматическом удалении сообщения {MessageId} в чате {ChatId}", messageId, chatId);
+            }
+        });
     }
 
     private Task HandlePollingErrorAsync(ITelegramBotClient bot, Exception exception, CancellationToken cancellationToken)

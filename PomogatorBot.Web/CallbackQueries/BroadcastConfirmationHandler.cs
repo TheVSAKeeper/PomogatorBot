@@ -1,4 +1,4 @@
-using PomogatorBot.Web.CallbackQueries.Common;
+﻿using PomogatorBot.Web.CallbackQueries.Common;
 using PomogatorBot.Web.Common.Constants;
 
 namespace PomogatorBot.Web.CallbackQueries;
@@ -28,7 +28,7 @@ public class BroadcastConfirmationHandler(
         var userId = callbackQuery.From.Id;
         var callbackData = callbackQuery.Data!;
 
-        if (CallbackDataParser.TryParseWithMultiplePrefixes(callbackData, PrefixActions, out var action, out var pendingId) == false)
+        if (!CallbackDataParser.TryParseWithMultiplePrefixes(callbackData, PrefixActions, out var action, out var pendingId))
         {
             logger.LogWarning("Неизвестное действие callback рассылки: {CallbackData}", callbackData);
             return new($"{Emoji.Question} Неизвестное действие");
