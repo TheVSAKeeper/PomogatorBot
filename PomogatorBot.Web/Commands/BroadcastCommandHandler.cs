@@ -2,17 +2,18 @@
 using PomogatorBot.Web.Common.Configuration;
 using PomogatorBot.Web.Common.Constants;
 using PomogatorBot.Web.Common.Keyboard;
+using PomogatorBot.Web.Common.Workflows;
 using Telegram.Bot.Types.Enums;
 
 namespace PomogatorBot.Web.Commands;
 
 public class BroadcastCommandHandler(
     IOptions<AdminConfiguration> adminOptions,
-    UserService userService,
     KeyboardFactory keyboardFactory,
     BroadcastPendingService broadcastPendingService,
     BroadcastNotificationService notificationService,
-    MessagePreviewService messagePreviewService)
+    BroadcastPreviewService broadcastPreviewService,
+    WorkflowService workflowService)
     : AdminRequiredCommandHandler(adminOptions), ICommandMetadata
 {
     public static CommandMetadata Metadata { get; } = new("b", "Возвестить пастве", true);
@@ -25,7 +26,7 @@ public class BroadcastCommandHandler(
 
         if (string.IsNullOrWhiteSpace(message.Text) || message.Text.Length <= length)
         {
-            return new(GetHelpMessage(), new());
+            return await workflowService.StartWorkflowAsync(message.From!.Id, BroadcastWorkflow.Name, cancellationToken);
         }
 
         var parts = message.Text.Split(" ", 3, StringSplitOptions.RemoveEmptyEntries);
@@ -57,49 +58,28 @@ public class BroadcastCommandHandler(
 
         var entities = MessageEntityHelper.OffsetEntities(filteredEntities, -entitiesOffset);
 
-        var userCount = await userService.GetCountBySubscriptionAsync(subscribes, cancellationToken);
+        var preview = await broadcastPreviewService.BuildPreviewAsync(broadcastMessage,
+            subscribes,
+            entities,
+            () => keyboardFactory.CreateForBroadcastConfirmation(string.Empty),
+            cancellationToken);
+
         var pendingId = broadcastPendingService.Store(broadcastMessage, subscribes, entities, message.From!.Id);
-        var subscriptionInfo = GetSubscriptionDisplayInfo(subscribes);
-        var preview = messagePreviewService.CreatePreview(broadcastMessage, entities);
 
-        var previewHeader = $"""
-                             {Emoji.Megaphone} Подтверждение рассылки:
-
-                             {Emoji.Target} Подписки: {subscriptionInfo}
-                             {Emoji.Users} Получателей (админ учитывается): {userCount}
-
-                             {Emoji.List} Предварительный просмотр (как увидят пользователи):
-                             ━━━━━
-                             """;
-
-        var previewFooter = $"""
-                             ━━━━━
-                             {Emoji.Warning} Подтвердите отправку рассылки всем указанным пользователям.
-                             """;
-
-        var confirmationMessage = string.Join(Environment.NewLine, previewHeader, preview.PreviewText, previewFooter);
-        var adjustedEntities = AdjustEntitiesForConfirmationMessage(preview.PreviewEntities, previewHeader.Length + Environment.NewLine.Length);
         var keyboard = keyboardFactory.CreateForBroadcastConfirmation(pendingId);
 
-        return new(confirmationMessage, keyboard, adjustedEntities, OnMessageSent);
+        return new(preview.Message, keyboard, preview.Entities, OnMessageSent);
 
         void OnMessageSent(long chatId, int messageId)
         {
-            var broadcast = broadcastPendingService.Get(pendingId);
-
-            if (broadcast == null)
-            {
-                return;
-            }
-
             notificationService.Add(pendingId,
-                broadcast.AdminUserId,
+                message.From!.Id,
                 chatId,
                 messageId,
-                broadcast.CreatedAt,
-                broadcast.ExpiresAt,
-                confirmationMessage,
-                adjustedEntities,
+                DateTime.UtcNow,
+                DateTime.UtcNow.AddHours(1),
+                preview.Message,
+                preview.Entities,
                 keyboard);
         }
     }
@@ -134,7 +114,7 @@ public class BroadcastCommandHandler(
 
     private static Subscribes ParseSubscriptions(string args)
     {
-        if (args.StartsWith('[') == false || args.EndsWith(']') == false)
+        if (!args.StartsWith('[') || !args.EndsWith(']'))
         {
             throw new ArgumentException($"{Emoji.Error} Не найдены скобки [ или ]. Используйте формат: [подписки]");
         }
@@ -163,31 +143,5 @@ public class BroadcastCommandHandler(
         }
 
         return result;
-    }
-
-    private static string GetSubscriptionDisplayInfo(Subscribes subscribes)
-    {
-        if (subscribes == Subscribes.None)
-        {
-            return $"{Emoji.Users} Всем пользователям";
-        }
-
-        var metadata = SubscriptionExtensions.SubscriptionMetadata;
-
-        var activeSubscriptions = metadata.Values
-            .Where(x => x.Subscription != Subscribes.None
-                        && x.Subscription != Subscribes.All
-                        && subscribes.HasFlag(x.Subscription))
-            .Select(x => $"{x.Icon} {x.DisplayName}")
-            .ToList();
-
-        return activeSubscriptions.Count > 0
-            ? string.Join(", ", activeSubscriptions)
-            : $"{Emoji.Users} Всем пользователям";
-    }
-
-    private static MessageEntity[]? AdjustEntitiesForConfirmationMessage(MessageEntity[]? entities, int offset)
-    {
-        return MessageEntityHelper.OffsetEntities(entities, offset);
     }
 }

@@ -1,10 +1,11 @@
-using FastEndpoints;
+﻿using FastEndpoints;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using PomogatorBot.Web.CallbackQueries.Common;
 using PomogatorBot.Web.Common.Configuration;
 using PomogatorBot.Web.Common.Keyboard;
+using PomogatorBot.Web.Common.Workflows;
 using PomogatorBot.Web.Infrastructure;
 using PomogatorBot.Web.Middlewares;
 using PomogatorBot.Web.Services.ExternalClients;
@@ -73,8 +74,10 @@ try
         .AddScoped<MessageTemplateService>()
         .AddScoped<BroadcastHistoryService>()
         .AddScoped<ExternalClientService>()
+        .AddScoped<BroadcastPreviewService>()
         .AddSingleton<BroadcastPendingService>()
-        .AddSingleton<BroadcastProgressService>();
+        .AddSingleton<BroadcastProgressService>()
+        .AddSingleton<WorkflowService>();
 
     builder.Services.AddProblemDetails(options =>
     {
